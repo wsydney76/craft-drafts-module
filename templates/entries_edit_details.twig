@@ -1,0 +1,102 @@
+{% set entry = context['entry'] %}
+{% set isCurrent = context['isCurrent'] %}
+{% set isDraft = context['isDraft'] %}
+{% set isUnsavedDraft = context['isUnsavedDraft'] %}
+{% set editable = entry.isEditable ? 'editable' : 'noteditable' %}
+
+
+
+{# Show existing drafts --------------------------------------------------------------------- #}
+
+{% if (isCurrent or isDraft) and not isUnsavedDraft %}
+
+    {% set query = craft.entries.draftOf(entry.sourceId) %}
+
+    {% if isDraft %}
+        {% set query = query.id("not #{entry.id}") %}
+    {% endif %}
+
+    {% set drafts = query.all %}
+    {% if drafts %}
+
+        {% set textOne = 'msg_draftwarningone'|t('drafts') %}
+        {% set textMultiple = 'msg_draftwarningmultiple'|t('drafts') %}
+
+        <div id="drafts-warning" class="meta read-only warning">
+            <p>{{ 'msg_draftwarning'|t('drafts') }} {{ drafts|length == 1 ? textOne : textMultiple }}</p>
+            <div class="flex flex-wrap">
+                {% for draft in drafts %}
+                    {{ tag('a', {
+                        class: ['btn'],
+                        title: draft.draftName,
+                        style: 'max-width:300px;overflow:hidden;text-overflow: ellipsis;',
+                        href:"#{ draft.cpEditUrl }&draftId=#{ draft.draftId }",
+                        text: 'Edit'|t('drafts') ~ ': ' ~ draft.draftName,
+                    }) }}
+                {% endfor %}
+            </div>
+        </div>
+
+    {% endif %}
+{% endif %}
+
+
+{# Unsaved drafts ------------------------------------------------------------------------------------------------ #}
+{% if isUnsavedDraft %}
+
+    <div class="meta read-only warning" id="draft-unsaved">
+        {{ "msg_editunsaved_#{editable}"|t('drafts') }}
+    </div>
+
+    {% js %}
+        $('#save-btn-container .btn.submit').prop('value','{{ "msg_saveunsaveddrafttext_#{editable}"|t("drafts") }}');
+    {% endjs %}
+{% endif %}
+
+{# Drafts for saved entries -------------------------------------------------------------------------------------- #}
+{% if isDraft and not isUnsavedDraft %}
+    {% js %}
+        $('#header > .flex > .btn.submit').prop('value','{{ "msg_savedrafttext_#{editable}"|t("drafts") }}');
+        $('#draft-saved').css('display', '');
+    {% endjs %}
+{% endif %}
+
+
+
+{# Current entry ----------------------------------------------------------------------------------------------- #}
+{% if isCurrent %}
+    {% js %}
+        $('#save-btn-container .btn.submit').prop('value','{{ 'msg_savecurrenttext'|t('drafts') }}');
+    {% endjs %}
+{% endif %}
+
+{% js %}
+if (window.draftEditor) {
+    window.draftEditor.on('createDraft', function() {
+        $('#draft-name').html(window.draftEditor.settings.draftName);
+        $('#draft-new').css('display', '');
+        $('#draft-saved').css('display', '');
+        $('#current-edit').css('display', 'none');
+        $('#header > .flex > .btn.submit').prop('value', '{{ "msg_savedrafttext_#{editable}"|t("drafts") }}');
+        if (window.draftEditor.isPreviewActive()) {
+            Craft.cp.displayNotice($('#draft-new').html());
+            $('.lp-editor-container header').append('<div><b>' + $('#draft-name').html() + '</b></div>');
+            }
+        });
+
+    }
+{% endjs %}
+
+{# Current entry: show hint if multi-site  #}
+{% if isCurrent and craft.app.sites.allSiteIds|length > 1 %}
+    <div class="meta read-only warning" id="current-edit">
+        {{ 'msg_editcurrent'|t('drafts') }}
+    </div>
+{% endif %}
+
+<div class="meta read-only warning" id="draft-new" style="display:none">
+    {{ 'msg_newdraft'|t('drafts') }}: <b><span id="draft-name"></span></b>
+</div>
+<div class="meta read-only warning" id="draft-saved" style="display: none">
+    {{ "msg_editsaved_#{editable}"|t('drafts') }}
+</div>
